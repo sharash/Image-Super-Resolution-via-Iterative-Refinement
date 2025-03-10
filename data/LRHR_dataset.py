@@ -83,7 +83,7 @@ class LRHRDataset(Dataset):
                 img_HR = Image.open(BytesIO(hr_img_bytes)).convert("RGB")
                 img_SR = Image.open(BytesIO(sr_img_bytes)).convert("RGB")
                 if self.need_LR:
-                    img_LR = None
+                    img_LR = Image.open(BytesIO(lr_img_bytes)).convert("RGB")
         else:
             img_HR = Image.open(self.hr_path[index]).convert("RGB")
             img_SR = Image.open(self.sr_path[index]).convert("RGB")
