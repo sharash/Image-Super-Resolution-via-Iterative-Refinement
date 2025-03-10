@@ -116,7 +116,6 @@ if __name__ == "__main__":
                         visuals = diffusion.get_current_visuals()
                         sr_img = Metrics.tensor2img(visuals['SR'])  # uint8
                         hr_img = Metrics.tensor2img(visuals['HR'])  # uint8
-                        lr_img = Metrics.tensor2img(visuals['LR'])  # uint8
                         fake_img = Metrics.tensor2img(visuals['INF'])  # uint8
 
                         # generation
@@ -124,8 +123,6 @@ if __name__ == "__main__":
                             hr_img, '{}/{}_{}_hr.png'.format(result_path, current_step, idx))
                         Metrics.save_img(
                             sr_img, '{}/{}_{}_sr.png'.format(result_path, current_step, idx))
-                        Metrics.save_img(
-                            lr_img, '{}/{}_{}_lr.png'.format(result_path, current_step, idx))
                         Metrics.save_img(
                             fake_img, '{}/{}_{}_inf.png'.format(result_path, current_step, idx))
                         tb_logger.add_image(
@@ -186,7 +183,6 @@ if __name__ == "__main__":
             visuals = diffusion.get_current_visuals()
 
             hr_img = Metrics.tensor2img(visuals['HR'])  # uint8
-            lr_img = Metrics.tensor2img(visuals['LR'])  # uint8
             fake_img = Metrics.tensor2img(visuals['INF'])  # uint8
 
             sr_img_mode = 'grid'
@@ -207,8 +203,6 @@ if __name__ == "__main__":
 
             Metrics.save_img(
                 hr_img, '{}/{}_{}_hr.png'.format(result_path, current_step, idx))
-            Metrics.save_img(
-                lr_img, '{}/{}_{}_lr.png'.format(result_path, current_step, idx))
             Metrics.save_img(
                 fake_img, '{}/{}_{}_inf.png'.format(result_path, current_step, idx))
 
