@@ -50,6 +50,9 @@ if __name__ == "__main__":
                 val_set, dataset_opt, phase)
     logger.info('Initial Dataset Finished')
 
+    # set checkpoint name
+    opt['path']['resume_state'] = input("Enter the state to be resumed (format I640000_E37): ")
+
     # model
     diffusion = Model.create_model(opt)
     logger.info('Initial Model Finished')
