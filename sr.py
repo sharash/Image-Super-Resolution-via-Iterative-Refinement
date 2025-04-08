@@ -184,7 +184,7 @@ if __name__ == "__main__":
         for _,  val_data in enumerate(val_loader):
             idx += 1
             diffusion.feed_data(val_data)
-            diffusion.test(continous=False, ddim=opt['model']['ddim_sampling'], timesteps=opt['model']['ddim_timesteps'])
+            diffusion.test(continous=True, ddim=opt['model']['ddim_sampling'], timesteps=opt['model']['ddim_timesteps'])
             visuals = diffusion.get_current_visuals()
 
             hr_img = Metrics.tensor2img(visuals['HR'])  # uint8

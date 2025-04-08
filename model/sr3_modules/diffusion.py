@@ -208,7 +208,6 @@ class GaussianDiffusion(nn.Module):
     @torch.no_grad()
     def p_sample_loop(self, x_in, continous=False, ddim=False, timesteps=None):
         device = self.betas.device
-        sample_inter = (1 | (self.num_timesteps//10))
         
         if ddim:
             # DDIM sampling with reduced timesteps
@@ -216,10 +215,12 @@ class GaussianDiffusion(nn.Module):
                 timesteps = self.num_timesteps // 10  # Default: 10x fewer steps
             time_range = np.flip(np.arange(0, self.num_timesteps, self.num_timesteps // timesteps))
             time_pairs = list(zip(time_range[:-1], time_range[1:]))
+            sample_inter = (1 | (timesteps // 10))
         else:
             # Original DDPM sampling
             time_range = reversed(range(0, self.num_timesteps))
             time_pairs = [(t, t-1) for t in time_range]
+            sample_inter = (1 | (self.num_timesteps//10))
 
         if not self.conditional:
             shape = x_in
@@ -242,9 +243,9 @@ class GaussianDiffusion(nn.Module):
                     img = self.p_sample_ddim(img, t, t_prev, condition_x=x)
                 else:
                     img = self.p_sample(img, t, condition_x=x)
-                if continous and (t % sample_inter == 0 or ddim):
+                if continous and (t % sample_inter == 0):
                     ret_img = torch.cat([ret_img, img], dim=0)
-        
+    
         if continous:
             return ret_img
         else:
