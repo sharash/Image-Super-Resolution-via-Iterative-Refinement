@@ -38,6 +38,8 @@
     "model": {
         "which_model_G": "sr3", // use the ddpm or sr3 network structure
         "finetune_norm": false,
+        "ddim_sampling": true,    // Enable/disable DDIM
+        "ddim_timesteps": 200,   // Number of steps for DDIM
         "unet": {
             "in_channel": 6,
             "out_channel": 3,
@@ -64,7 +66,7 @@
             },
             "val": {
                 "schedule": "linear",
-                "n_timestep": 2000,
+                "n_timestep": 200,
                 "linear_start": 1e-6,
                 "linear_end": 1e-2
             }

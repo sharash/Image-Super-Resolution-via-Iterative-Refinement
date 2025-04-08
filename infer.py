@@ -67,10 +67,10 @@ if __name__ == "__main__":
 
     result_path = '{}'.format(opt['path']['results'])
     os.makedirs(result_path, exist_ok=True)
-    for _,  val_data in enumerate(val_loader):
+    for _, val_data in enumerate(val_loader):
         idx += 1
         diffusion.feed_data(val_data)
-        diffusion.test(continous=True)
+        diffusion.test(continous=True, ddim=args.ddim, timesteps=args.ddim_steps)
         visuals = diffusion.get_current_visuals(need_LR=False)
 
         hr_img = Metrics.tensor2img(visuals['HR'])  # uint8

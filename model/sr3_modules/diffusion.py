@@ -174,40 +174,97 @@ class GaussianDiffusion(nn.Module):
         return model_mean + noise * (0.5 * model_log_variance).exp()
 
     @torch.no_grad()
-    def p_sample_loop(self, x_in, continous=False):
+    def p_sample_ddim(self, x, t, t_prev, condition_x=None):
+        """
+        DDIM sampling - deterministic sampling with skip steps
+        """
+        # Get model prediction (noise or x0)
+        noise_level = torch.FloatTensor([self.sqrt_alphas_cumprod_prev[t+1]]).to(x.device)
+        if condition_x is not None:
+            pred_noise = self.denoise_fn(torch.cat([condition_x, x], dim=1), noise_level)
+        else:
+            pred_noise = self.denoise_fn(x, noise_level)
+        
+        # Predict x0 from current x_t
+        x_recon = self.predict_start_from_noise(x, t=t, noise=pred_noise)
+        x_recon.clamp_(-1., 1.)
+
+        # DDIM update rule
+        sqrt_alpha_cumprod_t = self.sqrt_alphas_cumprod[t]
+        sqrt_alpha_cumprod_t_prev = self.sqrt_alphas_cumprod[t_prev] if t_prev >= 0 else torch.ones_like(sqrt_alpha_cumprod_t)
+        sigma_t = 0  # DDIM is deterministic (sigma=0)
+        
+        # Direction pointing to x_t
+        pred_dir = torch.sqrt(1 - sqrt_alpha_cumprod_t_prev**2 - sigma_t**2) * pred_noise
+        
+        # Update x_t-1
+        x_prev = sqrt_alpha_cumprod_t_prev * x_recon + pred_dir
+        return x_prev
+
+    @torch.no_grad()
+    def p_sample_loop(self, x_in, continous=False, ddim=False, timesteps=None):
         device = self.betas.device
         sample_inter = (1 | (self.num_timesteps//10))
+        
+        if ddim:
+            # DDIM sampling with reduced timesteps
+            if timesteps is None:
+                timesteps = self.num_timesteps // 10  # Default: 10x fewer steps
+            time_range = np.flip(np.arange(0, self.num_timesteps, self.num_timesteps // timesteps))
+            time_pairs = list(zip(time_range[:-1], time_range[1:]))
+        else:
+            # Original DDPM sampling
+            time_range = reversed(range(0, self.num_timesteps))
+            time_pairs = [(t, t-1) for t in time_range]
+
         if not self.conditional:
             shape = x_in
             img = torch.randn(shape, device=device)
             ret_img = img
-            for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-                img = self.p_sample(img, i)
-                if i % sample_inter == 0:
+            for t, t_prev in tqdm(time_pairs, desc='sampling loop time step'):
+                if ddim:
+                    img = self.p_sample_ddim(img, t, t_prev)
+                else:
+                    img = self.p_sample(img, t)
+                if continous and (t % sample_inter == 0 or ddim):
                     ret_img = torch.cat([ret_img, img], dim=0)
         else:
             x = x_in
             shape = x.shape
             img = torch.randn(shape, device=device)
             ret_img = x
-            for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-                img = self.p_sample(img, i, condition_x=x)
-                if i % sample_inter == 0:
+            for t, t_prev in tqdm(time_pairs, desc='sampling loop time step'):
+                if ddim:
+                    img = self.p_sample_ddim(img, t, t_prev, condition_x=x)
+                else:
+                    img = self.p_sample(img, t, condition_x=x)
+                if continous and (t % sample_inter == 0 or ddim):
                     ret_img = torch.cat([ret_img, img], dim=0)
+        
         if continous:
             return ret_img
         else:
             return ret_img[-1]
 
     @torch.no_grad()
-    def sample(self, batch_size=1, continous=False):
+    def sample(self, batch_size=1, continous=False, ddim=False, timesteps=None):
         image_size = self.image_size
         channels = self.channels
-        return self.p_sample_loop((batch_size, channels, image_size, image_size), continous)
+        return self.p_sample_loop(
+            (batch_size, channels, image_size, image_size),
+            continous=continous,
+            ddim=ddim,
+            timesteps=timesteps
+        )
 
     @torch.no_grad()
-    def super_resolution(self, x_in, continous=False):
-        return self.p_sample_loop(x_in, continous)
+    def super_resolution(self, x_in, continous=False, ddim=False, timesteps=None):
+        return self.p_sample_loop(
+            x_in,
+            continous=continous,
+            ddim=ddim,
+            timesteps=timesteps
+        )
 
     def q_sample(self, x_start, continuous_sqrt_alpha_cumprod, noise=None):
         noise = default(noise, lambda: torch.randn_like(x_start))

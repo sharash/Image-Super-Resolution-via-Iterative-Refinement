@@ -15,6 +15,8 @@ class DDPM(BaseModel):
         # define network and load pretrained models
         self.netG = self.set_device(networks.define_G(opt))
         self.schedule_phase = None
+        self.ddim_sampling = opt['model'].get('ddim_sampling', False)  # Load from config
+        self.ddim_timesteps = opt['model'].get('ddim_timesteps', 200)  # Load from config
 
         # set loss and load resume state
         self.set_loss()
@@ -62,19 +64,37 @@ class DDPM(BaseModel):
         with torch.no_grad():
             if isinstance(self.netG, nn.DataParallel):
                 self.SR = self.netG.module.super_resolution(
-                    self.data['SR'], continous)
+                    self.data['SR'], 
+                    continous=continous,
+                    ddim=self.ddim_sampling,
+                    timesteps=self.ddim_timesteps
+                )
             else:
                 self.SR = self.netG.super_resolution(
-                    self.data['SR'], continous)
+                    self.data['SR'], 
+                    continous=continous,
+                    ddim=self.ddim_sampling,
+                    timesteps=self.ddim_timesteps
+                )
         self.netG.train()
 
     def sample(self, batch_size=1, continous=False):
         self.netG.eval()
         with torch.no_grad():
             if isinstance(self.netG, nn.DataParallel):
-                self.SR = self.netG.module.sample(batch_size, continous)
+                self.SR = self.netG.module.sample(
+                    batch_size, 
+                    continous=continous,
+                    ddim=self.ddim_sampling,
+                    timesteps=self.ddim_timesteps
+                )
             else:
-                self.SR = self.netG.sample(batch_size, continous)
+                self.SR = self.netG.sample(
+                    batch_size, 
+                    continous=continous,
+                    ddim=self.ddim_sampling,
+                    timesteps=self.ddim_timesteps
+                )
         self.netG.train()
 
     def set_loss(self):
