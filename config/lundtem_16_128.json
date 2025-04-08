@@ -37,6 +37,7 @@
     },
     "model": {
         "which_model_G": "sr3", // use the ddpm or sr3 network structure
+        "loss_type": "l1", // l1 or l2 or gloss
         "finetune_norm": false,
         "ddim_sampling": true,    // Enable/disable DDIM
         "ddim_timesteps": 200,   // Number of steps for DDIM
