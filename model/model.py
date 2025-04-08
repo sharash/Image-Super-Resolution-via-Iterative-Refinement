@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import os
 import model.networks as networks
+from model.sr3_modules.diffusion import GLoss
 from .base_model import BaseModel
 logger = logging.getLogger('base')
 
@@ -179,6 +180,7 @@ class DDPM(BaseModel):
         logger.info(
             'Saved model in [{:s}] ...'.format(gen_path))
 
+
     def load_network(self):
         load_path = self.opt['path']['resume_state']
         if load_path is not None:
@@ -186,14 +188,57 @@ class DDPM(BaseModel):
                 'Loading pretrained model for G [{:s}] ...'.format(load_path))
             gen_path = '{}_gen.pth'.format(load_path)
             opt_path = '{}_opt.pth'.format(load_path)
+            
             # gen
             network = self.netG
             if isinstance(self.netG, nn.DataParallel):
                 network = network.module
-            network.load_state_dict(torch.load(
-                gen_path), strict=(not self.opt['model']['finetune_norm']))
-            # network.load_state_dict(torch.load(
-            #     gen_path), strict=False)
+            
+            # Get current state dict
+            current_state_dict = network.state_dict()
+            
+            # Load saved state dict
+            saved_state_dict = torch.load(gen_path)
+            
+            # Handle finetune_norm case
+            if self.opt['model']['finetune_norm']:
+                # Only load non-transformer parameters
+                for name, param in saved_state_dict.items():
+                    if name.find('transformer') < 0 and name in current_state_dict:
+                        current_state_dict[name].copy_(param)
+            else:
+                # Handle the case of different loss types
+                # We'll load all matching parameters and skip any missing ones
+                # (like the GLoss kernels when loading from L1/L2 checkpoint)
+                
+                # 1. First get the list of parameters to load
+                matched_params = {}
+                missing_keys = []
+                unexpected_keys = []
+                
+                for name, param in saved_state_dict.items():
+                    if name in current_state_dict:
+                        if current_state_dict[name].shape == param.shape:
+                            matched_params[name] = param
+                        else:
+                            missing_keys.append(name)
+                    else:
+                        unexpected_keys.append(name)
+                
+                # 2. Log any discrepancies
+                if missing_keys:
+                    logger.info('Missing keys in state_dict (shape mismatch): {}'.format(missing_keys))
+                if unexpected_keys:
+                    logger.info('Unexpected keys in state_dict: {}'.format(unexpected_keys))
+                
+                # 3. Load the matched parameters
+                current_state_dict.update(matched_params)
+                network.load_state_dict(current_state_dict, strict=False)
+                
+                # 4. Special handling for GLoss kernels if they weren't in the checkpoint
+                if hasattr(network, 'loss_func') and isinstance(network.loss_func, GLoss):
+                    logger.info('Initializing GLoss with default kernels')
+            
             if self.opt['phase'] == 'train':
                 # optimizer
                 opt = torch.load(opt_path)
