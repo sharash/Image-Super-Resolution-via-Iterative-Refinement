@@ -69,7 +69,9 @@ class GaussianDiffusion(nn.Module):
         channels=3,
         loss_type='l1',
         conditional=True,
-        schedule_opt=None
+        schedule_opt=None,
+        ddim_sampling=False,  # Add this
+        ddim_timesteps=200    # Add this
     ):
         super().__init__()
         self.channels = channels
@@ -77,6 +79,8 @@ class GaussianDiffusion(nn.Module):
         self.denoise_fn = denoise_fn
         self.loss_type = loss_type
         self.conditional = conditional
+        self.ddim_sampling = ddim_sampling  # Store DDIM flag
+        self.ddim_timesteps = ddim_timesteps  # Store DDIM steps
         if schedule_opt is not None:
             pass
             # self.set_new_noise_schedule(schedule_opt)

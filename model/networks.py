@@ -87,10 +87,6 @@ def define_G(opt):
     elif model_opt['which_model_G'] == 'sr3':
         from .sr3_modules import diffusion, unet
     
-    # Add DDIM parameters to model options
-    model_opt['ddim_sampling'] = opt.get('ddim_sampling', False)
-    model_opt['ddim_timesteps'] = opt.get('ddim_timesteps', 200)
-    
     if ('norm_groups' not in model_opt['unet']) or model_opt['unet']['norm_groups'] is None:
         model_opt['unet']['norm_groups'] = 32
         
@@ -113,8 +109,8 @@ def define_G(opt):
         loss_type='l1',
         conditional=model_opt['diffusion']['conditional'],
         schedule_opt=model_opt['beta_schedule']['train'],
-        ddim_sampling=model_opt.get('ddim_sampling', False),  # New parameter
-        ddim_timesteps=model_opt.get('ddim_timesteps', 200)   # New parameter
+        ddim_sampling=model_opt.get('ddim_sampling', False),
+        ddim_timesteps=model_opt.get('ddim_timesteps', 200)
     )
     
     if opt['phase'] == 'train':
@@ -123,4 +119,3 @@ def define_G(opt):
         assert torch.cuda.is_available()
         netG = nn.DataParallel(netG)
     return netG
-

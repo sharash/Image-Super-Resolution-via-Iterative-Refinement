@@ -59,41 +59,57 @@ class DDPM(BaseModel):
         # set log
         self.log_dict['l_pix'] = l_pix.item()
 
-    def test(self, continous=False):
+    def test(self, continous=False, ddim=None, timesteps=None):
+        """
+        Modified to accept DDIM parameters
+        If ddim/timesteps are None, use the instance defaults
+        """
         self.netG.eval()
         with torch.no_grad():
+            # Use provided parameters or fall back to instance defaults
+            use_ddim = self.ddim_sampling if ddim is None else ddim
+            use_timesteps = self.ddim_timesteps if timesteps is None else timesteps
+            
             if isinstance(self.netG, nn.DataParallel):
                 self.SR = self.netG.module.super_resolution(
                     self.data['SR'], 
                     continous=continous,
-                    ddim=self.ddim_sampling,
-                    timesteps=self.ddim_timesteps
+                    ddim=use_ddim,
+                    timesteps=use_timesteps
                 )
             else:
                 self.SR = self.netG.super_resolution(
                     self.data['SR'], 
                     continous=continous,
-                    ddim=self.ddim_sampling,
-                    timesteps=self.ddim_timesteps
+                    ddim=use_ddim,
+                    timesteps=use_timesteps
                 )
         self.netG.train()
 
-    def sample(self, batch_size=1, continous=False):
+    def sample(self, batch_size=1, continous=False, ddim=None, timesteps=None):
+        """
+        Modified to accept DDIM parameters
+        If ddim/timesteps are None, use the instance defaults
+        """
         self.netG.eval()
         with torch.no_grad():
+            # Use provided parameters or fall back to instance defaults
+            use_ddim = self.ddim_sampling if ddim is None else ddim
+            use_timesteps = self.ddim_timesteps if timesteps is None else timesteps
+            
             if isinstance(self.netG, nn.DataParallel):
                 self.SR = self.netG.module.sample(
                     batch_size, 
                     continous=continous,
-                    ddim=self.ddim_sampling,
-                    timesteps=self.ddim_timesteps
+                    ddim=use_ddim,
+                    timesteps=use_timesteps
                 )
             else:
                 self.SR = self.netG.sample(
                     batch_size, 
                     continous=continous,
-                    ddim=self.ddim_sampling,
-                    timesteps=self.ddim_timesteps
+                    ddim=use_ddim,
+                    timesteps=use_timesteps
                 )
         self.netG.train()
 
