@@ -50,15 +50,31 @@ class DDPM(BaseModel):
 
     def optimize_parameters(self):
         self.optG.zero_grad()
-        l_pix = self.netG(self.data)
-        # need to average in multi-gpu
-        b, c, h, w = self.data['HR'].shape
-        l_pix = l_pix.sum()/int(b*c*h*w)
-        l_pix.backward()
+    
+        # Forward pass through the network
+        output = self.netG(self.data)
+        
+        # Handle different loss types
+        if isinstance(self.netG.module.loss_func, GLoss):
+            # For GLoss, the output is already the loss value
+            loss = output
+        else:
+            # For L1/L2 losses, we need to compute the loss
+            b, c, h, w = self.data['HR'].shape
+            if isinstance(output, tuple):
+                # If the network returns a tuple, use the first element as prediction
+                pred = output[0]
+                loss = output[0].sum() / int(b*c*h*w)
+            else:
+                # Single output case
+                loss = output.sum() / int(b*c*h*w)
+        
+        # Backward pass
+        loss.backward()
         self.optG.step()
 
-        # set log
-        self.log_dict['l_pix'] = l_pix.item()
+        # Log the training loss
+        self.log_dict['training/training_loss'] = loss.item()
 
     def test(self, continous=False, ddim=None, timesteps=None):
         """

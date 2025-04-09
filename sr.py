@@ -45,7 +45,9 @@ if __name__ == "__main__":
         wandb_logger = WandbLogger(opt)
         wandb.define_metric('validation/val_step')
         wandb.define_metric('epoch')
+        wandb.define_metric('training/training_iteration')
         wandb.define_metric("validation/*", step_metric="val_step")
+        wandb.define_metric("training/*", step_metric="training_iteration")
         val_step = 0
     else:
         wandb_logger = None
@@ -100,6 +102,8 @@ if __name__ == "__main__":
                     logger.info(message)
 
                     if wandb_logger:
+                        logs['training/training_iteration'] = current_step
+                        logs['epoch'] = current_epoch
                         wandb_logger.log_metrics(logs)
 
                 # Modify the validation section (around line 107)
