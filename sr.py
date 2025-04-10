@@ -45,9 +45,10 @@ if __name__ == "__main__":
         wandb_logger = WandbLogger(opt)
         wandb.define_metric('validation/val_step')
         wandb.define_metric('epoch')
-        wandb.define_metric('training/training_iteration')
+        wandb.define_metric('training_iteration')
         wandb.define_metric("validation/*", step_metric="val_step")
-        wandb.define_metric("training/*", step_metric="training_iteration")
+        wandb.define_metric("validation/val_loss", step_metric="val_step")
+        wandb.define_metric("training/*", step_metric="training_loss")
         val_step = 0
     else:
         wandb_logger = None
@@ -94,6 +95,7 @@ if __name__ == "__main__":
                 # log
                 if current_step % opt['train']['print_freq'] == 0:
                     logs = diffusion.get_current_log()
+                    logs['training_iteration'] = current_step
                     message = '<epoch:{:3d}, iter:{:8,d}> '.format(
                         current_epoch, current_step)
                     for k, v in logs.items():
@@ -102,26 +104,34 @@ if __name__ == "__main__":
                     logger.info(message)
 
                     if wandb_logger:
-                        logs['training/training_iteration'] = current_step
-                        logs['epoch'] = current_epoch
                         wandb_logger.log_metrics(logs)
 
                 # Modify the validation section (around line 107)
-                if current_step % opt['train']['val_freq'] == 0:
-                    avg_psnr = 0.0
-                    idx = 0
-                    result_path = '{}/{}'.format(opt['path']['results'], current_epoch)
-                    os.makedirs(result_path, exist_ok=True)
+            if current_step % opt['train']['val_freq'] == 0:
+                avg_psnr = 0.0
+                avg_loss = 0.0  # Add this line
+                idx = 0
+                result_path = '{}/{}'.format(opt['path']['results'], current_epoch)
+                os.makedirs(result_path, exist_ok=True)
 
-                    diffusion.set_new_noise_schedule(
-                        opt['model']['beta_schedule']['val'], schedule_phase='val')
+                diffusion.set_new_noise_schedule(
+                    opt['model']['beta_schedule']['val'], schedule_phase='val')
+                
+                with torch.no_grad():  # Add this context manager
                     for _, val_data in enumerate(val_loader):
                         idx += 1
                         diffusion.feed_data(val_data)
-                        diffusion.test(continous=False, ddim=opt['model']['ddim_sampling'], timesteps=opt['model']['ddim_timesteps'])
+                        
+                        # Get validation loss - modify your test() method to return loss
+                        val_loss = diffusion.test(
+                            continous=False, 
+                            ddim=opt['model']['ddim_sampling'], 
+                            timesteps=opt['model']['ddim_timesteps']
+                        )
+                        
                         visuals = diffusion.get_current_visuals()
-                        sr_img = Metrics.tensor2img(visuals['SR'])  # uint8
-                        hr_img = Metrics.tensor2img(visuals['HR'])  # uint8
+                        sr_img = Metrics.tensor2img(visuals['SR'])
+                        hr_img = Metrics.tensor2img(visuals['HR'])
                         lr_img = Metrics.tensor2img(visuals['LR'])  # uint8
                         fake_img = Metrics.tensor2img(visuals['INF'])  # uint8
 
@@ -139,8 +149,8 @@ if __name__ == "__main__":
                             np.transpose(np.concatenate(
                                 (fake_img, sr_img, hr_img), axis=1), [2, 0, 1]),
                             idx)
-                        avg_psnr += Metrics.calculate_psnr(
-                            sr_img, hr_img)
+                        avg_psnr += Metrics.calculate_psnr(sr_img, hr_img)
+                        avg_loss += val_loss.item()  # Accumulate validation loss
 
                         if wandb_logger:
                             wandb_logger.log_image(
@@ -149,10 +159,12 @@ if __name__ == "__main__":
                             )
 
                     avg_psnr = avg_psnr / idx
+                    avg_loss = avg_loss / idx
+
                     diffusion.set_new_noise_schedule(
                         opt['model']['beta_schedule']['train'], schedule_phase='train')
                     # log
-                    logger.info('# Validation # PSNR: {:.4e}'.format(avg_psnr))
+                    logger.info('# Validation # PSNR: {:.4e}, Loss: {:.4e}'.format(avg_psnr, avg_loss))
                     logger_val = logging.getLogger('val')  # validation logger
                     logger_val.info('<epoch:{:3d}, iter:{:8,d}> psnr: {:.4e}'.format(
                         current_epoch, current_step, avg_psnr))
@@ -162,7 +174,9 @@ if __name__ == "__main__":
                     if wandb_logger:
                         wandb_logger.log_metrics({
                             'validation/val_psnr': avg_psnr,
-                            'validation/val_step': val_step
+                            'validation/val_loss': avg_loss,  # Add this line
+                            'validation/val_step': val_step,
+                            'training_iteration': current_step  # Link to training progress
                         })
                         val_step += 1
 

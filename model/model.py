@@ -78,8 +78,10 @@ class DDPM(BaseModel):
 
     def test(self, continous=False, ddim=None, timesteps=None):
         """
-        Modified to accept DDIM parameters
-        If ddim/timesteps are None, use the instance defaults
+        Modified to:
+        1. Accept DDIM parameters (if None, use instance defaults)
+        2. Calculate and return validation loss
+        3. Maintain all existing super-resolution functionality
         """
         self.netG.eval()
         with torch.no_grad():
@@ -87,22 +89,33 @@ class DDPM(BaseModel):
             use_ddim = self.ddim_sampling if ddim is None else ddim
             use_timesteps = self.ddim_timesteps if timesteps is None else timesteps
             
+            # Perform super-resolution
             if isinstance(self.netG, nn.DataParallel):
-                self.SR = self.netG.module.super_resolution(
-                    self.data['SR'], 
+                sr_output = self.netG.module.super_resolution(
+                    self.data['SR'],
                     continous=continous,
                     ddim=use_ddim,
                     timesteps=use_timesteps
                 )
+                loss_func = self.netG.module.loss_func
             else:
-                self.SR = self.netG.super_resolution(
-                    self.data['SR'], 
+                sr_output = self.netG.super_resolution(
+                    self.data['SR'],
                     continous=continous,
                     ddim=use_ddim,
                     timesteps=use_timesteps
                 )
+                loss_func = self.netG.loss_func
+            
+            sr = self.SR if len(self.SR.shape) == 4 else self.SR.unsqueeze(0)
+            hr = self.data['HR'] if len(self.data['HR'].shape) == 4 else self.data['HR'].unsqueeze(0)
+            
+            # Calculate validation loss
+            val_loss = loss_func(sr, hr)
+            
         self.netG.train()
-
+        return val_loss
+    
     def sample(self, batch_size=1, continous=False, ddim=None, timesteps=None):
         """
         Modified to accept DDIM parameters
