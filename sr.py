@@ -43,12 +43,10 @@ if __name__ == "__main__":
     if opt['enable_wandb']:
         import wandb
         wandb_logger = WandbLogger(opt)
-        wandb.define_metric('validation/val_step')
         wandb.define_metric('epoch')
         wandb.define_metric('training_iteration')
-        wandb.define_metric("validation/*", step_metric="val_step")
-        wandb.define_metric("validation/val_loss", step_metric="val_step")
-        wandb.define_metric("training/*", step_metric="training_loss")
+        wandb.define_metric("validation/*", step_metric="training_iteration")
+        wandb.define_metric("training/*", step_metric="training_iteration")
         val_step = 0
     else:
         wandb_logger = None
@@ -106,7 +104,6 @@ if __name__ == "__main__":
                     if wandb_logger:
                         wandb_logger.log_metrics(logs)
 
-                # Modify the validation section (around line 107)
             if current_step % opt['train']['val_freq'] == 0:
                 avg_psnr = 0.0
                 avg_loss = 0.0  # Add this line
@@ -174,8 +171,7 @@ if __name__ == "__main__":
                     if wandb_logger:
                         wandb_logger.log_metrics({
                             'validation/val_psnr': avg_psnr,
-                            'validation/val_loss': avg_loss,  # Add this line
-                            'validation/val_step': val_step,
+                            'validation/val_loss': avg_loss,
                             'training_iteration': current_step  # Link to training progress
                         })
                         val_step += 1
