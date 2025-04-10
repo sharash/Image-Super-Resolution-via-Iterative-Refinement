@@ -91,7 +91,7 @@ class DDPM(BaseModel):
             
             # Perform super-resolution
             if isinstance(self.netG, nn.DataParallel):
-                sr_output = self.netG.module.super_resolution(
+                self.SR = self.netG.module.super_resolution(
                     self.data['SR'],
                     continous=continous,
                     ddim=use_ddim,
@@ -99,7 +99,7 @@ class DDPM(BaseModel):
                 )
                 loss_func = self.netG.module.loss_func
             else:
-                sr_output = self.netG.super_resolution(
+                self.SR = self.netG.super_resolution(
                     self.data['SR'],
                     continous=continous,
                     ddim=use_ddim,
