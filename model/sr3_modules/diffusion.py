@@ -338,7 +338,7 @@ class GaussianDiffusion(nn.Module):
                     img = self.p_sample_ddim(img, t, t_prev)
                 else:
                     img = self.p_sample(img, t)
-                if continous and (t % sample_inter == 0 or ddim):
+                if t % sample_inter == 0:
                     ret_img = torch.cat([ret_img, img], dim=0)
         else:
             x = x_in
@@ -350,7 +350,7 @@ class GaussianDiffusion(nn.Module):
                     img = self.p_sample_ddim(img, t, t_prev, condition_x=x)
                 else:
                     img = self.p_sample(img, t, condition_x=x)
-                if continous and (t % sample_inter == 0):
+                if t % sample_inter == 0:
                     ret_img = torch.cat([ret_img, img], dim=0)
     
         if continous:
