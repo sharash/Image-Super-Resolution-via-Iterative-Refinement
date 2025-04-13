@@ -58,7 +58,7 @@
             "res_blocks": 2,
             "dropout": 0.2
         },
-        "beta_schedule": { // use munual beta_schedule for acceleration
+        "beta_schedule": { // use manual beta_schedule for acceleration
             "train": {
                 "schedule": "linear",
                 "n_timestep": 2000,
@@ -75,11 +75,11 @@
         "diffusion": {
             "image_size": 128,
             "channels": 3, //sample channel
-            "conditional": true // unconditional generation or unconditional generation(super_resolution)
+            "conditional": true // unconditional generation or conditional generation(super_resolution)
         }
     },
     "train": {
-        "n_iter": 830100,
+        "n_iter": 1e7,
         "val_freq": 1e3,
         "save_checkpoint_freq": 1e3,
         "print_freq": 500,
