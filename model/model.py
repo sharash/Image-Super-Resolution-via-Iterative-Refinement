@@ -111,7 +111,11 @@ class DDPM(BaseModel):
             hr = self.data['HR'] if len(self.data['HR'].shape) == 4 else self.data['HR'].unsqueeze(0)
             
             # Calculate validation loss
-            val_loss = loss_func(sr, hr)
+            if continous: # need to get last image in series and convert [3, 128, 128] → [1, 3, 128, 128]
+                sr_image_to_compare = sr[-1].unsqueeze(0)
+            else:
+                sr_image_to_compare = sr
+            val_loss = loss_func(sr_image_to_compare, hr)
             
         self.netG.train()
         return val_loss
